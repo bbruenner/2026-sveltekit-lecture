@@ -1,0 +1,151 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% beamerthemetugrazflaait/flaait-template.sty
+%
+% FLAAIT Beamer Template -- companion package for beamerthemetugraz2018.
+%
+% Load AFTER \usetheme{tugraz2018}, e.g.
+%   \usetheme[institute]{tugraz2018}
+%   \usepackage{beamerthemetugrazflaait/flaait-template}
+%
+% Provides:
+%   * Common optional packages (listings, pgfplots, tabularray, fontawesome,
+%     biblatex, multicol, outlines, qrcode, svg, ...)
+%   * Helper macros: \checkYes \checkNo \itemPlus \itemMinus \itemArrow
+%   * Automatic Outline frame at the start of every \section
+%   * \slidesAndLicense -- single command that renders the Slides & License
+%     frame; metadata is defined ONCE via \slidesLicenseDOI and
+%     \slidesLicenseAuthors and can be re-used at the start and end of the
+%     deck.
+%   * \footerVersion is OPTIONAL: when called with an empty argument (or
+%     not called at all), the footer falls back to " | <\HeaderVersion>".
+%%%
+%
+% Compile
+%   pdflatex presentation.tex
+%   biber    presentation
+%   pdflatex presentation.tex
+%   pdflatex presentation.tex
+%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{beamerthemetugrazflaait/flaait-template}%
+  [2026/05/22 v1.0 FLAAIT Beamer Template additions]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% --- Optional packages for scientific content ----------------------------
+\RequirePackage{listings}    % Source code listings
+\RequirePackage{pgfplots}    % Plots and diagrams
+\RequirePackage{tabularray}  % Coloured tables -- needs [table] beamer opt
+\RequirePackage{fontawesome} % Useful icons (\faName)
+\RequirePackage[natbib=true,style=apa]{biblatex} % Bibliography
+% \RequirePackage{filecontents}
+\RequirePackage{multicol}
+\RequirePackage{wrapfig}
+\RequirePackage{outlines}
+\RequirePackage{qrcode}
+\RequirePackage{xcolor}
+\RequirePackage{pdfpages}
+\RequirePackage{pgfgantt}
+\RequirePackage{graphicx}
+% Search the workspace, the figures/ folder for presentation assets,
+% and beamerthemetugrazflaait/ for theme-bundled logos (CC-BY, flaait, logo, ...).
+% This lets \includegraphics{CC-BY} or \additionallogo{flaait} resolve
+% without spelling out the folder.
+\graphicspath{{./}{figures/}{beamerthemetugrazflaait/}}
+
+\usepackage[utf8]{inputenc}
+
+
+\institute{ISDS}
+\institutelogo{beamerthemetugrazflaait/institute/ISDS}
+\instituteurl{www.tugraz.at}
+
+
+
+% --- German bibliography string tweaks -----------------------------------
+\DefineBibliographyStrings{german}{
+  mathesis = {Masterarbeit},
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% --- Helper macros --------------------------------------------------------
+\newcommand{\checkYes}{\textcolor{tuggreen}{\faCheckSquareO}}
+\newcommand{\checkNo}{\textcolor{black}{\faSquareO\,}}
+\newcommand{\itemPlus}{\textcolor{tuggreen}{\faPlusCircle}}
+\newcommand{\itemMinus}{\textcolor{tugred}{\faMinusCircle}}
+\newcommand{\itemArrow}{\textcolor{tugblue}{\faArrowCircleRight}}
+\newcommand{\itemArrowLine}{\textcolor{tugblue}{\faArrowCircleRight}\hspace{0.2cm}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% --- Automatic Outline frame at every \section ---------------------------
+\AtBeginSection[]{%
+  \begin{frame}{Outline}
+    \tableofcontents[currentsection]
+  \end{frame}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% --- Layout / typography defaults ----------------------------------------
+\setlength{\multicolsep}{0pt}
+\renewcommand{\normalsize}{\fontsize{11}{12}\selectfont}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% --- Optional \footerVersion ---------------------------------------------
+% The original theme defines:
+%   \newcommand{\footerVersion}[1]{\def\FooterVersion{#1}}
+% We override it so that an empty argument (or no call at all) causes the
+% footer to fall back to " | <HeaderVersion>".
+\makeatletter
+\renewcommand{\footerVersion}[1]{%
+  \def\flaait@tmpfoot{#1}%
+  \ifx\flaait@tmpfoot\@empty
+    \def\FooterVersion{ | \HeaderVersion}%
+  \else
+    \def\FooterVersion{#1}%
+  \fi
+}
+% If the user never calls \footerVersion at all, default to the same thing.
+\AtBeginDocument{%
+  \@ifundefined{FooterVersion}%
+    {\def\FooterVersion{ | \HeaderVersion}}%
+    {}%
+}
+\makeatother
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% --- Reusable Slides & License block --------------------------------------
+% Define the metadata ONCE here (or override via \renewcommand in your
+% presentation.tex); call \slidesAndLicense anywhere -- typically at the
+% start AND at the end of the deck.
+% \newcommand{\slidesLicenseDOI}{https://doi.org/10.3217/}
+% \newcommand{\slidesLicenseAuthors}{%
+%   Author One,\\
+%   Co-Author Two\\[2pt]
+%   ed-tech.at%
+% }
+
+\newcommand{\slidesAndLicense}{%
+  \section*{Slides \& License}%
+  \begin{frame}{Slides \& License}
+    These slides may be used under the terms of the CC license
+    CC BY 4.0 International
+    (\url{https://creativecommons.org/licenses/by/4.0/}).\\
+    Please use the links and references as sources for individual
+    illustrations, if applicable.\\
+    \vspace{0.5cm}
+    Slides available at \url{\slidesLicenseDOI}\\
+    \vspace{0.5cm}
+    \begin{minipage}{3.2cm}
+      \includegraphics[width=3cm]{CC-BY}
+    \end{minipage}
+    \begin{minipage}{0.61\textwidth}
+      \slidesLicenseAuthors
+    \end{minipage}
+    \begin{minipage}{0.09\textwidth}
+      \qrcode{\slidesLicenseDOI}
+    \end{minipage}
+  \end{frame}%
+}
+
+\endinput

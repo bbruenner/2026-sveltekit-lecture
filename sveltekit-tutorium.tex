@@ -1,0 +1,2011 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  Fortbildung: Einstieg in Svelte und SvelteKit -- Modul 1 (Präsenz, 3 h)
+%  Inhalt: Feedback-App (5 Sterne + Freitext) in 9 Schritten:
+%          Node, npm, sv create, Svelte (State, Komponenten), SvelteKit
+%          (Form Actions, load, Rendering), Excel, Cloudflare Tunnel
+%
+%  DREI VERSIONEN AUS EINER QUELLE
+%  -------------------------------
+%    make student     -> ...-student.pdf           ohne Loesungen (Austeilversion)
+%    make solution    -> ...-student-solution.pdf  mit Loesungen
+%    make lecturer    -> ...-lecturer.pdf          mit Loesungen + Vortragsfolien
+%    make             -> alle drei
+%
+%  \begin{lecturer} ... \end{lecturer}  -> nur in der Lecturer-Version
+%  \begin{loesung} ... \end{loesung}    -> nur mit Loesungen (solution + lecturer)
+%
+%  Die Loesungsfolien binden die Dateien aus code/schritte/ ueber
+%  Zeilenbereiche ein. Wer dort Zeilen aendert, muss die Bereiche hier anpassen.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[table, aspectratio=169]{beamer}
+
+\usepackage[institute]{beamerthemetugrazflaait/beamerthemetugraz2018}
+\usepackage{beamerthemetugrazflaait/flaait-template}
+
+\usepackage[english,ngerman]{babel}
+\usepackage{upquote}
+\usepackage{comment}
+\usetikzlibrary{positioning,arrows.meta,calc}
+% Der Stern aus unserer App, auch im Fließtext
+\DeclareUnicodeCharacter{2605}{\ensuremath{\bigstar}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% --- Schalter: Student- vs. Lecturer-Version ------------------------------
+% Zum Erzwingen im Editor: das % in der nächsten Zeile entfernen.
+%\def\LECTURER{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newif\iflecturer
+\ifdefined\LECTURER \lecturertrue \else \lecturerfalse \fi
+
+\iflecturer
+  \includecomment{lecturer}
+\else
+  \excludecomment{lecturer}
+\fi
+
+% --- Schalter: Loesungsfolien ---------------------------------------------
+\newif\ifsolution
+\ifdefined\SOLUTION \solutiontrue \else \solutionfalse \fi
+\iflecturer \solutiontrue \fi
+
+\ifsolution
+  \includecomment{loesung}
+\else
+  \excludecomment{loesung}
+\fi
+
+% Sichtbare Markierung für Vortragsfolien
+\newcommand{\lecturerbadge}{\textcolor{tugred}{\faGraduationCap}~}
+\newcommand{\ltitle}[1]{\lecturerbadge #1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% --- Listings -------------------------------------------------------------
+\definecolor{codetag}{HTML}{0057B7}
+\definecolor{codekey}{HTML}{A0306E}
+\definecolor{codestring}{HTML}{157F3D}
+\definecolor{codecomment}{HTML}{808080}
+\definecolor{codeframe}{HTML}{C8D6E5}
+\definecolor{svelte}{HTML}{E0440E}
+
+% JavaScript
+\lstdefinelanguage{JS}{
+  sensitive=true,
+  alsoletter={\$},
+  morekeywords={import,from,export,const,let,function,return,if,else,for,of,
+                async,await,new,class,default,this,true,false,null,constructor},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]",
+  morestring=[b]`,
+}
+
+% Svelte: JavaScript + HTML-Kommentare; Tag-Namen und Runes als Schlüsselwörter
+\lstdefinelanguage{Svelte}{
+  sensitive=true,
+  alsoletter={\$},
+  morekeywords={import,from,export,const,let,function,return,if,else,for,of,
+                async,await,new,class,default,this,true,false,null,each,as},
+  morekeywords=[2]{script,style,h1,h2,p,button,form,input,label,textarea,
+                ul,li,img,div,span,Sterne,Zaehler},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morecomment=[s]{<!--}{-->},
+  morestring=[b]',
+  morestring=[b]",
+  morestring=[b]`,
+}
+
+\lstdefinestyle{codebase}{
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{codekey}\bfseries,
+  keywordstyle=[2]\color{codetag}\bfseries,
+  commentstyle=\color{codecomment}\itshape,
+  stringstyle=\color{codestring},
+  identifierstyle=\color{black},
+  emph={$state,$derived,$props,$bindable,$effect},
+  emphstyle=\color{svelte}\bfseries,
+  showstringspaces=false,
+  numbers=left,
+  numberstyle=\tiny\color{codecomment},
+  numbersep=8pt,
+  frame=leftline,
+  framesep=6pt,
+  rulecolor=\color{codeframe},
+  framerule=1.5pt,
+  breaklines=true,
+  breakatwhitespace=false,
+  tabsize=2,
+  columns=fullflexible,
+  keepspaces=true,
+  upquote=true,
+  aboveskip=4pt, belowskip=4pt,
+}
+\lstdefinestyle{js}{style=codebase,language=JS}
+\lstdefinestyle{svelte}{style=codebase,language=Svelte}
+\lstdefinestyle{jssm}{style=js,basicstyle=\ttfamily\fontsize{7}{8.2}\selectfont,aboveskip=2pt,belowskip=2pt}
+\lstdefinestyle{sveltesm}{style=svelte,basicstyle=\ttfamily\fontsize{7}{8.2}\selectfont,aboveskip=2pt,belowskip=2pt}
+
+% Terminal und sonstige Ausgaben
+\lstdefinestyle{term}{
+  language={},
+  basicstyle=\ttfamily\scriptsize,
+  frame=leftline, framesep=6pt, framerule=1.5pt,
+  rulecolor=\color{tuggreen},
+  breaklines=true, columns=fullflexible, keepspaces=true,
+  upquote=true, numbers=none, showstringspaces=false,
+  aboveskip=4pt, belowskip=4pt,
+}
+
+% Umlaute und typografische Zeichen in Listings (pdflatex + inputenc)
+\lstset{
+  extendedchars=true,
+  literate={ä}{{\"a}}1 {ö}{{\"o}}1 {ü}{{\"u}}1
+           {Ä}{{\"A}}1 {Ö}{{\"O}}1 {Ü}{{\"U}}1
+           {ß}{{\ss}}1 {„}{{\glqq}}1 {“}{{\grqq}}1
+           {’}{{\textquoteright}}1 {–}{{--}}1
+           {★}{{\ensuremath{\bigstar}}}1
+}
+
+\lstset{style=js}
+
+% Dateien aus code/schritte/ einbinden: \jsrange{Datei}{von}{bis}
+\newcommand{\schritte}{code/schritte}
+\newcommand{\jsfile}[1]{\lstinputlisting[style=js]{\schritte/#1}}
+\newcommand{\jsrange}[3]{\lstinputlisting[style=js,firstline=#2,lastline=#3,firstnumber=#2]{\schritte/#1}}
+\newcommand{\jsrangesm}[3]{\lstinputlisting[style=jssm,firstline=#2,lastline=#3,firstnumber=#2]{\schritte/#1}}
+\newcommand{\sveltefile}[1]{\lstinputlisting[style=svelte]{\schritte/#1}}
+\newcommand{\svelterange}[3]{\lstinputlisting[style=svelte,firstline=#2,lastline=#3,firstnumber=#2]{\schritte/#1}}
+\newcommand{\svelterangesm}[3]{\lstinputlisting[style=sveltesm,firstline=#2,lastline=#3,firstnumber=#2]{\schritte/#1}}
+
+% Inline-Code, Dateiname über einem Listing, Pfeil im Fließtext
+\newcommand{\code}[1]{\texttt{\color{codetag}#1}}
+\newcommand{\rune}[1]{\texttt{\color{svelte}\textbf{\$#1}}}
+\newcommand{\datei}[1]{{\footnotesize\textcolor{head}{\faFileCodeO}~\texttt{#1}}\par\vspace{-0.2em}}
+\newcommand{\textarrow}{\ensuremath{\rightarrow}}
+
+% TikZ-Stile (mit #1 nur in der Präambel definieren)
+\tikzset{
+  kasten/.style={draw=head, fill=body, rounded corners=3pt, minimum width=2.6cm,
+                 minimum height=1.5cm, align=center, font=\small},
+  datei/.style={draw=tuggreen, fill=tuggreen!12, rounded corners=3pt,
+                minimum width=2.5cm, minimum height=0.8cm, align=center, font=\footnotesize\ttfamily},
+  pfeil/.style={-{Stealth[length=2.5mm]}, thick, head},
+  doppelpfeil/.style={{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]}, thick, head},
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% --- Metadaten ------------------------------------------------------------
+\title[Svelte \& SvelteKit]{Einstieg in Svelte und SvelteKit\\Eine Feedback-App in 9 Schritten}
+\author[Benedikt Brünner]{Benedikt Brünner}
+\date{Modul 1 -- Präsenz (3 Stunden)}
+\headerVersion{Fortbildung Svelte \& SvelteKit | TU Graz}
+\footerVersion{}
+\headerContact{}
+
+\newcommand{\slidesLicenseDOI}{}
+\newcommand{\slidesLicenseAuthors}{%
+  Benedikt Brünner, TU Graz%
+}
+
+\renewcommand{\slidesAndLicense}[1][]{%
+  \section*{Folien \& Lizenz}%
+  \begin{frame}{Folien \& Lizenz}
+    Diese Folien dürfen unter den Bedingungen der CC-Lizenz
+    CC BY 4.0 International
+    (\url{https://creativecommons.org/licenses/by/4.0/}) verwendet werden.\\
+    Bitte verwenden Sie die Links und Quellenangaben als Nachweis für
+    einzelne Abbildungen, sofern zutreffend.\\
+    \vspace{0.8cm}
+    \begin{minipage}{3.2cm}
+      \includegraphics[width=3cm]{CC-BY}
+    \end{minipage}
+    \begin{minipage}{0.65\textwidth}
+      \slidesLicenseAuthors
+    \end{minipage}
+    \ifx\relax#1\relax\else
+      \\[0.6cm]
+      {\footnotesize #1}
+    \fi
+  \end{frame}%
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+% ngerman macht " zu einem aktiven Zeichen -- in \code{type="button"} zerstört
+% das die Anführungszeichen. Nicht entfernen.
+\shorthandoff{"}
+
+\switchtostandard
+
+\begin{frame}[plain]
+  \maketitle
+\end{frame}
+
+\section*{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{lecturer}
+\begin{frame}{\ltitle{Ablaufplan -- 180 Minuten}}
+  \scriptsize
+  \begin{tblr}{colspec={llX[l]},
+               rowsep=0.4pt,
+               row{odd}={white}, row{even}={lite},
+               row{1}={tug,fg=white}}
+    Zeit & Block & Inhalt \\
+    000--010 & Start          & \textbf{Rückwärts beginnen}: QR scannen, abstimmen, Ergebnis live, Excel öffnen \\
+    010--020 & Überblick      & Was ist gerade passiert? Fahrplan, warum Svelte \\
+    020--040 & Node \& npm    & JavaScript ohne Browser, Pakete \textarrow{} \textbf{Schritt 1, 2} \\
+    040--055 & Projekt        & \texttt{npx sv create}, Struktur, Dev-Server \textarrow{} \textbf{Schritt 3} \\
+    055--075 & Svelte I       & \rune{state}, Events, \texttt{\{\#each\}} \textarrow{} \textbf{Schritt 4} \\
+    075--085 & \textbf{Pause} & \\
+    085--105 & Svelte II      & Komponenten, Props, \texttt{bind:}, \rune{derived} \textarrow{} \textbf{Schritt 5} \\
+    105--130 & SvelteKit I    & Routing, Server, Form Actions \textarrow{} \textbf{Schritt 6} \\
+    130--145 & SvelteKit II   & \texttt{load}, Rendering-Arten \textarrow{} \textbf{Schritt 7} \\
+    145--155 & Excel          & \texttt{exceljs} im Server-Code \textarrow{} \textbf{Schritt 8} \\
+    155--170 & Internet       & Cloudflare Tunnel, QR-Code \textarrow{} \textbf{Schritt 9} \\
+    170--180 & Abschluss      & gegenseitig abstimmen, Stolpersteine, Ausblick Online-Termine \\
+  \end{tblr}
+
+  \textbf{Puffer:} Schritt 1 nur vorzeigen, Zusatz „Klasse“ und Rendering-Experiment weglassen.
+  \textbf{Nie} kürzen: Schritt 6 und 9.
+\end{frame}
+
+\begin{frame}{\ltitle{Checkliste vor dem Start}}
+  \scriptsize
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.52\textwidth}
+      \textbf{Am Vortragsrechner}
+      \begin{tugitemize}
+        \item[\checkNo] \texttt{code/feedback-app}: \texttt{npm install} gelaufen
+        \item[\checkNo] Ordner \texttt{data/} gelöscht (keine alten Stimmen)
+        \item[\checkNo] Terminal 1: \texttt{npm run dev}
+        \item[\checkNo] Terminal 2:\\ \texttt{cloudflared tunnel -{}-url http://localhost:5173}
+        \item[\checkNo] Am Beamer: \textbf{Tunnel-Adresse}\texttt{/ergebnis} --
+              nicht \texttt{localhost}, sonst zeigt der QR-Code auf \texttt{localhost}
+        \item[\checkNo] Mit dem Handy einmal abstimmen, dann \texttt{data/} wieder löschen
+      \end{tugitemize}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \textbf{Bei den Teilnehmer*innen} (vorab ausschicken)
+      \begin{tugitemize}
+        \item[\checkNo] Node.js LTS (ab 22.17)
+        \item[\checkNo] VS Code + „Svelte for VS Code“
+        \item[\checkNo] \texttt{cloudflared}
+        \item[\checkNo] Ordner \texttt{code/} (ohne \texttt{node\_modules})
+      \end{tugitemize}
+      \vspace{0.4em}
+      \textbf{Plan B:} Tunnel blockiert \textarrow{} Handy-Hotspot.
+      Notfalls Schritt 0 nur am eigenen Rechner zeigen.
+    \end{column}
+  \end{columns}
+\end{frame}
+\end{lecturer}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}{Bevor wir anfangen: Ihre Stimme}
+  \begin{columns}[onlytextwidth,c]
+    \begin{column}{0.55\textwidth}
+      \begin{tugenumerate}
+        \item QR-Code am Beamer scannen
+        \item \textbf{1 bis 5 Sterne} vergeben:\\
+              \emph{Wie fit fühlen Sie sich in JavaScript?}
+        \item Ein Satz: \emph{Was erwarten Sie sich von heute?}
+        \item \emph{Abschicken}
+      \end{tugenumerate}
+      \vspace{0.6em}
+      \itemArrowLine Schauen Sie dabei nach vorne.
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \centering
+      {\fontsize{30}{30}\selectfont\textcolor{tugyellow}{\faStar\faStar\faStar\faStar}\textcolor{colC}{\faStarO}}\\[1em]
+      {\small Der QR-Code steht auf der\\Ergebnis-Seite der App.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{lecturer}
+\begin{frame}{\ltitle{Moderation Schritt 0 (ca. 10 min)}}
+  \footnotesize
+  \begin{enumerate}
+    \item Ergebnis-Seite (über die Tunnel-Adresse!) am Beamer zeigen, abstimmen lassen.
+    \item Kommentare vorlesen -- das sind die Erwartungen an den Tag.
+    \item \texttt{data/feedback.xlsx} in Excel öffnen: „Das liegt jetzt auf \emph{meinem} Laptop.“
+    \item \texttt{data/stimmen.json} im Editor zeigen: gleiche Daten, anderes Format.
+    \item Die sechs Dateien zeigen: „Etwa 150 Zeilen. Die schreiben wir heute selbst.“
+  \end{enumerate}
+  \begin{block}{Der rote Faden}
+    Jede Folie ab jetzt beantwortet ein Stück der Frage:
+    \emph{Was ist zwischen Ihrem Daumen und meiner Excel-Datei passiert?}
+  \end{block}
+\end{frame}
+\end{lecturer}
+
+\begin{frame}{Was ist gerade passiert?}
+  \centering
+  \begin{tikzpicture}
+    \node[kasten, minimum width=2.2cm, font=\footnotesize] (handy)  at (0,0)    {\faMobile\\[2pt]\textbf{Ihr Handy}\\Browser};
+    \node[kasten, minimum width=2.2cm, font=\footnotesize] (cf)     at (3.7,0)  {\faCloud\\[2pt]\textbf{Cloudflare}\\Adresse im Netz};
+    \node[kasten, minimum width=2.2cm, font=\footnotesize] (laptop) at (7.6,0)  {\faLaptop\\[2pt]\textbf{Mein Laptop}\\Node.js + SvelteKit};
+    \node[datei]  (json)   at (11.6,0.5)  {stimmen.json};
+    \node[datei]  (xlsx)   at (11.6,-0.5) {feedback.xlsx};
+    \draw[doppelpfeil] (handy) -- (cf);
+    \draw[doppelpfeil] (cf) -- (laptop);
+    \draw[pfeil] (laptop.east) -- (json.west);
+    \draw[pfeil] (laptop.east) -- (xlsx.west);
+  \end{tikzpicture}
+
+  \vspace{0.8em}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.31\textwidth}
+      \raggedright\small\textbf{Im Browser}\\
+      Sterne anklicken, Zeichen zählen:\\ \textbf{Svelte}
+    \end{column}
+    \begin{column}{0.31\textwidth}
+      \raggedright\small\textbf{Im Netz}\\
+      \texttt{localhost} von außen erreichbar:\\ \textbf{Cloudflare Tunnel}
+    \end{column}
+    \begin{column}{0.31\textwidth}
+      \raggedright\small\textbf{Am Server}\\
+      Prüfen, speichern, Excel schreiben:\\ \textbf{SvelteKit auf Node.js}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Genau das bauen wir heute -- in 9 Schritten}
+  \scriptsize
+  \begin{tblr}{colspec={clX[l]l},
+               rowsep=0.6pt,
+               row{odd}={white}, row{even}={lite},
+               row{1}={tug,fg=white}}
+    Nr. & Thema & Was entsteht & Ordner in \texttt{code/schritte/} \\
+    1 & Node.js      & JavaScript schreibt eine JSON-Datei           & \texttt{01-node} \\
+    2 & npm          & Ein Paket schreibt eine Excel-Datei           & \texttt{02-npm} \\
+    3 & Projekt      & \texttt{npx sv create}, erste eigene Seite    & \texttt{03-projekt} \\
+    4 & Svelte       & Fünf Sterne zum Anklicken                     & \texttt{04-state} \\
+    5 & Komponenten  & \texttt{Sterne.svelte}, Freitext mit Zähler   & \texttt{05-komponente} \\
+    6 & SvelteKit    & Formular, das am Server speichert             & \texttt{06-formular} \\
+    7 & SvelteKit    & Ergebnis-Seite mit Durchschnitt               & \texttt{07-ergebnis} \\
+    8 & Excel        & Jede Stimme landet in \texttt{feedback.xlsx}  & \texttt{08-excel} \\
+    9 & Internet     & Tunnel und QR-Code                            & \texttt{09-tunnel} \\
+  \end{tblr}
+
+  \vspace{0.6em}
+  \footnotesize
+  \itemArrowLine \textbf{Hängen geblieben?} Jeder Ordner enthält den fertigen Stand \emph{nach} diesem
+  Schritt. Inhalt über Ihr Projekt kopieren und beim nächsten Schritt wieder mitmachen.
+\end{frame}
+
+\begin{frame}{Die Fortbildung im Überblick}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Modul 1 -- Präsenz}
+        \footnotesize\textbf{Heute, 3 Stunden}
+        \begin{tugitemize}
+          \item Node und npm
+          \item Svelte und SvelteKit
+          \item eine fertige App
+        \end{tugitemize}
+        \textbf{Bewusst ohne KI.}
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Modul 2 -- Online}
+        \footnotesize\textbf{Kurzinput: Security}
+        \begin{tugitemize}
+          \item Eingaben prüfen
+          \item Was darf ins Internet?
+          \item fremde Pakete
+        \end{tugitemize}
+        Danach: Ihre Projekte.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Modul 3 -- Online}
+        \footnotesize\textbf{Kurzinput: KI}
+        \begin{tugitemize}
+          \item Was sie gut kann
+          \item wo sie veraltet ist
+          \item Einsatz im Unterricht
+        \end{tugitemize}
+        Danach: Ihre Projekte.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.4em}
+  \footnotesize\centering
+  \itemArrowLine \textbf{Zwischen den Terminen} arbeiten Sie an einem eigenen kleinen Projekt.
+\end{frame}
+
+\begin{frame}{Was Sie heute erwartet}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.5\textwidth}
+      \textbf{Inhalt}
+      \begin{tugitemize}
+        \item Warum Svelte?
+        \item Node.js und npm
+        \item Projekt mit \texttt{sv create}
+        \item Svelte: State, Events, Komponenten
+        \item SvelteKit: Seiten, Server, Formulare
+        \item Rendering: Server oder Browser?
+        \item Die App ins Internet stellen
+      \end{tugitemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Danach können Sie}
+      \begin{tugitemize}
+        \item[\itemPlus] eine Entwicklungsumgebung aufsetzen
+        \item[\itemPlus] interaktive Komponenten schreiben
+        \item[\itemPlus] Daten am Server speichern
+        \item[\itemPlus] erklären, wo welcher Code läuft
+        \item[\itemArrow] ein eigenes Projekt beginnen
+      \end{tugitemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sectionheader[Was ein Framework abnimmt]{Warum Svelte?}
+
+\begin{frame}[fragile]{Dasselbe Programm, zweimal}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.49\textwidth}
+      \textbf{HTML + JavaScript von Hand}
+\begin{lstlisting}[style=svelte]
+<button id="knopf">0 Klicks</button>
+
+<script>
+  let klicks = 0;
+  const knopf =
+    document.getElementById('knopf');
+
+  knopf.addEventListener('click', () => {
+    klicks += 1;
+    knopf.textContent = klicks + ' Klicks';
+  });
+</script>
+\end{lstlisting}
+      \footnotesize Sie sagen dem Browser, \textbf{wie} er die Seite ändern soll.
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \textbf{Svelte}
+\begin{lstlisting}[style=svelte]
+<script>
+  let klicks = $state(0);
+</script>
+
+<button onclick={() => (klicks += 1)}>
+  {klicks} Klicks
+</button>
+\end{lstlisting}
+      \footnotesize Sie beschreiben, \textbf{was} zu sehen sein soll.
+      Ändert sich \texttt{klicks}, ändert Svelte die Seite.
+
+      \vspace{0.5em}
+      \itemArrowLine Das nennt man \textbf{reaktiv}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Svelte ist ein Compiler}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.46\textwidth}
+      \textbf{React, Vue, Angular}
+      \begin{tugitemize}
+        \item Ihr Code \emph{plus} eine Bibliothek laufen im Browser
+        \item eigene Schreibweisen (JSX, \dots)
+      \end{tugitemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Svelte}
+      \begin{tugitemize}
+        \item[\itemPlus] übersetzt Komponenten \textbf{vorab} in schlankes JavaScript
+        \item[\itemPlus] eine Datei = HTML + CSS + JavaScript
+        \item[\itemPlus] wenig Vokabeln: gut für den Unterricht
+      \end{tugitemize}
+    \end{column}
+  \end{columns}
+  \vspace{0.5em}
+  \begin{block}{Svelte und SvelteKit}
+    \small\textbf{Svelte} baut Komponenten (Knöpfe, Formulare, Listen).
+    \textbf{SvelteKit} macht daraus eine Anwendung: mehrere Seiten, Server-Code, Auslieferung.
+  \end{block}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sectionheader[JavaScript ohne Browser, Pakete von anderen]{Node.js und npm}
+
+\begin{frame}[fragile]{Node.js: JavaScript ohne Browser}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.48\textwidth}
+      Gleiche Sprache, andere Umgebung:
+      \vspace{0.3em}
+
+      {\scriptsize
+      \begin{tblr}{colspec={lX[l]X[l]},
+                   rowsep=0.8pt,
+                   row{odd}={white}, row{even}={lite},
+                   row{1}={tug,fg=white}}
+        & Browser & Node.js \\
+        Seite     & \texttt{document} & -- \\
+        Dateien   & --                & \texttt{node:fs} \\
+        Start     & Seite öffnen      & \texttt{node datei.js} \\
+        läuft bei & Besucher*in       & Ihnen / am Server \\
+      \end{tblr}}
+
+      \vspace{0.5em}
+      \footnotesize Node.js ist der \textbf{Motor} für alles Weitere:
+      npm, den Entwicklungsserver, unseren Server-Code.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Ist es installiert?}
+\begin{lstlisting}[style=term]
+node -v      # v24.x   (mindestens 22.17)
+npm -v       # 11.x
+\end{lstlisting}
+      \footnotesize Installieren: \url{https://nodejs.org} \textarrow{} \textbf{LTS}
+
+      \vspace{0.6em}
+      \normalsize\textbf{Das Terminal}
+      \footnotesize
+      \begin{tugitemize}
+        \item VS Code: \emph{Terminal \textarrow{} Neues Terminal}
+        \item \texttt{cd ordner} wechselt den Ordner
+        \item \texttt{Strg+C} beendet ein laufendes Programm
+      \end{tugitemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Schritt 1 -- Aufgabe: Eine Stimme in eine Datei schreiben}
+  \footnotesize
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.57\textwidth}
+      Neuer Ordner \texttt{node-test}, darin \texttt{stimmen.js}:
+      \begin{tugenumerate}
+        \item \texttt{stimmen.json} einlesen, falls vorhanden -- sonst leeres Array
+        \item Ein Objekt mit \texttt{zeit}, \texttt{sterne}, \texttt{text} anhängen
+        \item Das Array zurück in die Datei schreiben
+        \item Anzahl der Stimmen ausgeben
+      \end{tugenumerate}
+\begin{lstlisting}[style=jssm,numbers=none]
+import { existsSync, readFileSync, writeFileSync }
+  from 'node:fs';
+
+JSON.parse(readFileSync('stimmen.json', 'utf-8'))
+writeFileSync('stimmen.json', JSON.stringify(stimmen))
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.39\textwidth}
+      \textbf{Test}
+\begin{lstlisting}[style=term]
+node stimmen.js
+node stimmen.js
+\end{lstlisting}
+      \begin{tugitemize}
+        \item Zählt die Ausgabe hoch?
+        \item Was steht in \texttt{stimmen.json}?
+      \end{tugitemize}
+      \vspace{0.4em}
+      \textbf{Experiment}\\
+      Ändern Sie eine Zahl direkt in \texttt{stimmen.json}
+      und starten Sie neu.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{lecturer}
+\begin{frame}{\ltitle{Live-Coding Schritt 1 (ca. 8 min)}}
+  \footnotesize
+  \begin{enumerate}
+    \item Zuerst nur \code{console.log(\textquotesingle{}Hallo\textquotesingle{})} und \texttt{node stimmen.js} -- kein Browser weit und breit.
+    \item \code{document.title} ausprobieren \textarrow{} Fehler. Node hat keine Seite.
+    \item Datei lesen/schreiben. \code{JSON.stringify(x, null, 2)}: die \texttt{2} macht es lesbar.
+    \item Zweimal starten, \texttt{stimmen.json} daneben offen lassen.
+  \end{enumerate}
+  \begin{block}{Vorausblick}
+    Genau diese Zeilen wandern in Schritt 6 fast unverändert in den Server-Code.
+  \end{block}
+\end{frame}
+\end{lecturer}
+
+\begin{loesung}
+\begin{frame}[fragile]{Schritt 1 -- Lösung: \texttt{stimmen.js}}
+  \jsrangesm{01-node/stimmen.js}{1}{20}
+\end{frame}
+\end{loesung}
+
+\begin{frame}[fragile]{npm: Pakete von anderen nutzen}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.52\textwidth}
+      Excel schreiben? Das hat schon jemand gelöst.
+\begin{lstlisting}[style=term]
+npm init -y            # legt package.json an
+npm install exceljs    # holt das Paket
+\end{lstlisting}
+      {\scriptsize
+      \begin{tblr}{colspec={lX[l]},
+                   rowsep=0.8pt,
+                   row{odd}={white}, row{even}={lite},
+                   row{1}={tug,fg=white}}
+        Datei / Ordner & Wozu \\
+        \texttt{package.json}      & Steckbrief: Name, Skripte, Pakete \\
+        \texttt{node\_modules/}    & die heruntergeladenen Pakete \\
+        \texttt{package-lock.json} & exakt installierte Versionen \\
+      \end{tblr}}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \footnotesize
+      \textbf{Merken}
+      \begin{tugitemize}
+        \item \texttt{node\_modules} gibt man \textbf{nie} weiter --
+              \texttt{npm install} baut den Ordner neu
+        \item \texttt{npx paket} führt ein Paket aus, ohne es zu installieren
+      \end{tugitemize}
+      \begin{alertblock}{Ein Paket ist fremder Code}
+        \footnotesize Er läuft mit Ihren Rechten. Mehr dazu im Security-Input.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Schritt 2 -- Aufgabe: Aus JSON wird Excel}
+  \footnotesize
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.57\textwidth}
+      Im Ordner \texttt{node-test}:
+      \begin{tugenumerate}
+        \item \texttt{npm init -y}, dann \texttt{npm install exceljs}
+        \item In \texttt{package.json}: \code{"type": "module"}
+        \item Neue Datei \texttt{excel.js}: \texttt{stimmen.json} einlesen
+        \item Blatt „Feedback“, Spalten \emph{Zeit}, \emph{Sterne}, \emph{Text}
+        \item Stimmen einfügen, \texttt{feedback.xlsx} speichern
+      \end{tugenumerate}
+\begin{lstlisting}[style=jssm,numbers=none]
+import ExcelJS from 'exceljs';
+const mappe = new ExcelJS.Workbook();
+const blatt = mappe.addWorksheet('Feedback');
+blatt.columns = [{ header: 'Zeit', key: 'zeit' }];
+blatt.addRows(stimmen);
+await mappe.xlsx.writeFile('feedback.xlsx');
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.39\textwidth}
+      \textbf{Test}
+\begin{lstlisting}[style=term]
+node excel.js
+\end{lstlisting}
+      Lässt sich \texttt{feedback.xlsx} öffnen?
+      \begin{alertblock}{Stolperstein}
+        \footnotesize \texttt{npm init} schreibt \code{"commonjs"}. Damit scheitert
+        \code{import}.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{loesung}
+\begin{frame}[fragile]{Schritt 2 -- Lösung: \texttt{excel.js}}
+  \jsrangesm{02-npm/excel.js}{2}{20}
+\end{frame}
+\end{loesung}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sectionheader[sv create, Projektstruktur, Entwicklungsserver]{Das Projekt aufsetzen}
+
+\begin{frame}[fragile]{Ein Projekt erzeugen lassen}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.54\textwidth}
+      Niemand legt die Dateien von Hand an:
+\begin{lstlisting}[style=term]
+npx sv create feedback-app
+\end{lstlisting}
+      \footnotesize
+      \begin{tugitemize}
+        \item Vorlage: \textbf{SvelteKit minimal}
+        \item TypeScript: \textbf{nein} \quad Add-ons: \textbf{keine}
+        \item Paketmanager: \textbf{npm}
+      \end{tugitemize}
+      Oder in einer Zeile, ohne Rückfragen:
+\begin{lstlisting}[style=term]
+npx sv create feedback-app --template minimal
+    --no-types --no-add-ons --install npm
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \textbf{Starten}
+\begin{lstlisting}[style=term]
+cd feedback-app
+npm run dev
+\end{lstlisting}
+      \footnotesize Der Entwicklungsserver läuft auf\\
+      \url{http://localhost:5173}
+
+      \begin{block}{Speichern genügt}
+        \footnotesize Jede gespeicherte Änderung erscheint sofort im Browser.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Was liegt im Projektordner?}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=term]
+feedback-app/
+  src/
+    routes/
+      +page.svelte     <- Startseite
+      +layout.svelte   <- Rahmen
+    lib/               <- Bausteine
+    app.html           <- HTML-Gerüst
+  static/              <- Bilder
+  package.json
+  vite.config.js       <- Einstellungen
+  node_modules/
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \footnotesize
+      \textbf{Hier arbeiten wir}
+      \begin{tugitemize}
+        \item[\itemArrow] \texttt{src/routes/} -- die \textbf{Seiten}
+        \item[\itemArrow] \texttt{src/lib/} -- \textbf{Komponenten}, Hilfscode
+      \end{tugitemize}
+      \vspace{0.3em}
+      \textbf{Das erkennen Sie wieder}
+      \begin{tugitemize}
+        \item \texttt{app.html}: \code{<html>}, \code{<head>}, \code{<body>}
+        \item \texttt{package.json}: wie in Schritt 2
+      \end{tugitemize}
+      \vspace{0.3em}
+      \texttt{+} am Dateianfang: Diese Datei hat für SvelteKit eine
+      \textbf{feste Bedeutung}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Schritt 3 -- Aufgabe: Die erste eigene Seite}
+  \footnotesize
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.55\textwidth}
+      \begin{tugenumerate}
+        \item Projekt mit \texttt{npx sv create feedback-app} erzeugen, starten
+        \item \texttt{src/routes/+page.svelte}: Inhalt ersetzen durch
+              \code{<h1>} mit der Frage und einen Absatz
+        \item \texttt{src/app.html}: \code{lang="de"}
+        \item \texttt{src/routes/+layout.svelte}: im \code{<svelte:head>}
+              \code{<title>Feedback</title>} ergänzen, unten den
+              \code{<style>}-Block anhängen
+      \end{tugenumerate}
+      \vspace{0.3em}
+      \textbf{Test}: Steht „Feedback“ im Browser-Tab? Ist der Text zentriert?
+    \end{column}
+    \begin{column}{0.41\textwidth}
+\begin{lstlisting}[style=sveltesm,numbers=none]
+<style>
+  :global(body) {
+    font-family: system-ui, sans-serif;
+    text-align: center;
+    max-width: 28rem;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+</style>
+\end{lstlisting}
+      CSS ist heute nicht unser Thema: abtippen oder aus
+      \texttt{03-projekt} kopieren.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{lecturer}
+\begin{frame}{\ltitle{Live-Coding Schritt 3 (ca. 10 min)}}
+  \footnotesize
+  \begin{enumerate}
+    \item \texttt{npx sv create} gemeinsam, Antworten vorlesen. Verklickt? Ordner löschen, Einzeiler.
+    \item \texttt{npm run dev}, Browser und Editor nebeneinander.
+    \item In \texttt{+page.svelte} Text ändern, speichern -- \emph{nicht} neu laden.
+    \item \texttt{package.json} öffnen: \code{"type": "module"} und \code{"scripts"} wiedererkennen.
+  \end{enumerate}
+  \begin{block}{Erfahrungsgemäß}
+    Terminal im falschen Ordner (\texttt{cd feedback-app} vergessen). Port 5173 belegt:
+    Vite nimmt 5174, Adresse im Terminal ablesen. Schul-Proxy blockiert \texttt{npm install}.
+  \end{block}
+\end{frame}
+\end{lecturer}
+
+\begin{loesung}
+\begin{frame}[fragile]{Schritt 3 -- Lösung}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.42\textwidth}
+      \datei{src/routes/+page.svelte}
+      \svelterangesm{03-projekt/src/routes/+page.svelte}{1}{2}
+      \vspace{0.4em}
+      \footnotesize \code{:global(...)}: Styles gelten in Svelte sonst nur für die eigene Datei.
+
+      \vspace{0.4em}
+      Das Layout rahmt jede Seite ein. \code{children} ist die Seite.
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \datei{src/routes/+layout.svelte}
+      \svelterangesm{03-projekt/src/routes/+layout.svelte}{7}{23}
+    \end{column}
+  \end{columns}
+\end{frame}
+\end{loesung}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sectionheader[State, Events, Schleifen]{Svelte: reaktive Seiten}
+
+\begin{frame}[fragile]{Eine Svelte-Datei hat drei Teile}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=svelte]
+<script>
+  let name = 'Welt';
+</script>
+
+<h1>Hallo {name}!</h1>
+<p>2 + 3 = {2 + 3}</p>
+
+<style>
+  h1 {
+    color: purple;
+  }
+</style>
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \small
+      \begin{tugitemize}
+        \item[1--3] \textbf{\code{<script>}}: JavaScript
+        \item[5--6] \textbf{Markup}: HTML. In \texttt{\{ \}} steht ein
+              JavaScript-Ausdruck
+        \item[8--12] \textbf{\code{<style>}}: CSS -- gilt \textbf{nur für diese Datei}
+      \end{tugitemize}
+      \vspace{0.5em}
+      Alle drei Teile sind freiwillig.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{State: Daten, die sich ändern}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=svelte]
+<script>
+  let klicks = $state(0);
+
+  function zaehle() {
+    klicks += 1;
+  }
+</script>
+
+<button onclick={zaehle}>
+  {klicks} Klicks
+</button>
+<button onclick={() => (klicks = 0)}>
+  Zurücksetzen
+</button>
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \footnotesize
+      \begin{tugitemize}
+        \item[2] \rune{state}\texttt{(0)}: \textbf{reaktive} Variable --
+              ändert sie sich, folgt die Seite
+        \item[9] \code{onclick=\{...\}}: bei Klick ausführen
+        \item[12] Kurzform: Pfeilfunktion im Markup
+      \end{tugitemize}
+      \vspace{0.4em}
+      \textbf{Ohne} \rune{state}: \code{let klicks = 0} zählt weiter --
+      aber die Seite erfährt nichts davon.
+
+      \vspace{0.4em}
+      Wörter mit \texttt{\$} heißen \textbf{Runes}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Wiederholen und Auswählen}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=svelte]
+{#each ['Rot', 'Grün', 'Blau'] as farbe}
+  <button
+    class={auswahl === farbe ? 'aktiv' : ''}
+    onclick={() => (auswahl = farbe)}
+  >
+    {farbe}
+  </button>
+{/each}
+
+{#if auswahl !== ''}
+  <p>Gewählt: {auswahl}</p>
+{:else}
+  <p>Bitte wählen.</p>
+{/if}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \footnotesize
+      \begin{tugitemize}
+        \item[1] \textbf{\texttt{\{\#each liste as element\}}}:
+              Inhalt für jedes Element wiederholen
+        \item[3] Ein Attribut darf ein Ausdruck sein:
+              \code{bedingung ? \textquotesingle{}a\textquotesingle{} : \textquotesingle{}b\textquotesingle{}}
+        \item[10] \textbf{\texttt{\{\#if\}} \dots{} \texttt{\{:else\}} \dots{} \texttt{\{/if\}}}:
+              nur anzeigen, wenn die Bedingung stimmt
+      \end{tugitemize}
+      \vspace{0.4em}
+      Merkhilfe: \texttt{\#} öffnet, \texttt{:} trennt, \texttt{/} schließt.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Schritt 4 -- Aufgabe: Fünf Sterne zum Anklicken}
+  \footnotesize
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.56\textwidth}
+      In \texttt{src/routes/+page.svelte}:
+      \begin{tugenumerate}
+        \item Eine reaktive Variable \texttt{sterne}, Startwert 0
+        \item Mit \texttt{\{\#each [1, 2, 3, 4, 5] as stufe\}} fünf Knöpfe
+              mit dem Zeichen ★ erzeugen
+        \item Klick setzt \texttt{sterne} auf die \texttt{stufe} des Knopfs
+        \item Knöpfe bis zur gewählten Stufe: Klasse \texttt{voll}
+        \item Darunter: \emph{„3 von 5 Sternen“}
+      \end{tugenumerate}
+      \vspace{0.3em}
+      ★ tippen: Windows \texttt{Win+.}, macOS \texttt{Ctrl+Cmd+Leertaste}
+
+      \vspace{0.4em}
+      \textbf{Experiment}: \code{let sterne = 0} ohne \rune{state}. Was passiert?
+    \end{column}
+    \begin{column}{0.4\textwidth}
+\begin{lstlisting}[style=svelte,numbers=none]
+<style>
+  button {
+    font-size: 3rem;
+    background: none;
+    border: none;
+    color: lightgray;
+    cursor: pointer;
+  }
+
+  .voll {
+    color: gold;
+  }
+</style>
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{lecturer}
+\begin{frame}{\ltitle{Live-Coding Schritt 4 (ca. 12 min)}}
+  \footnotesize
+  \begin{enumerate}
+    \item Erst \emph{einen} Knopf, der \texttt{sterne} hochzählt. Dann \texttt{\{\#each\}}.
+    \item Zuerst nur \code{onclick} und die Anzeige „3 von 5“. Danach die Klasse \texttt{voll}.
+    \item Frage in die Runde: „Warum \code{sterne >= stufe} und nicht \code{===}?“
+    \item Experiment ohne \rune{state} zeigen. Svelte warnt sogar im Editor.
+  \end{enumerate}
+  \begin{block}{Typische Fehler}
+    \code{onclick=\{sterne = stufe\}} ohne Pfeilfunktion: läuft sofort beim Zeichnen,
+    nicht beim Klick. \code{on:click} aus alten Tutorials: Svelte 4.
+  \end{block}
+\end{frame}
+\end{lecturer}
+
+\begin{loesung}
+\begin{frame}[fragile]{Schritt 4 -- Lösung}
+  \datei{src/routes/+page.svelte}
+  \svelterange{04-state/src/routes/+page.svelte}{1}{11}
+  \vspace{0.3em}
+  {\footnotesize \textbf{Zeile 8}: „Ist die gewählte Zahl mindestens so groß wie meine Stufe, bin ich gelb.“
+  Der \code{<style>}-Block steht auf der Aufgabenfolie.}
+\end{frame}
+\end{loesung}
+
+\begin{frame}[plain,c]
+  \centering
+  {\Huge\textcolor{tug}{\faCoffee}}\\[1em]
+  {\LARGE Pause}\\[0.5em]
+  10 Minuten
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sectionheader[Props, bind, abgeleitete Werte]{Svelte: Komponenten}
+
+\begin{frame}[fragile]{Eine Komponente ist eine eigene Datei}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.48\textwidth}
+      \datei{src/lib/Zaehler.svelte}
+\begin{lstlisting}[style=svelte]
+<script>
+  let { schritt = 1 } = $props();
+
+  let wert = $state(0);
+</script>
+
+<button onclick={() => (wert += schritt)}>
+  {wert}
+</button>
+\end{lstlisting}
+      \footnotesize \rune{props}\texttt{()}: die \textbf{Eingänge} der Komponente,
+      hier mit Standardwert.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \datei{src/routes/+page.svelte}
+\begin{lstlisting}[style=svelte]
+<script>
+  import Zaehler from '#lib/Zaehler.svelte';
+</script>
+
+<Zaehler />
+<Zaehler schritt={5} />
+\end{lstlisting}
+      \footnotesize
+      \begin{tugitemize}
+        \item Komponenten: \textbf{Großbuchstabe} am Anfang
+        \item \texttt{\#lib} = Abkürzung für \texttt{src/lib}
+        \item Jede Verwendung hat \textbf{eigenen} State
+      \end{tugitemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Daten in beide Richtungen: bind}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=svelte]
+<script>
+  let text = $state('');
+  let rest = $derived(300 - text.length);
+</script>
+
+<textarea bind:value={text}></textarea>
+<p>Noch {rest} Zeichen</p>
+\end{lstlisting}
+      \footnotesize Eigene Komponenten erlauben \texttt{bind:} mit \rune{bindable}:
+\begin{lstlisting}[style=svelte,numbers=none]
+let { wert = $bindable(0) } = $props();
+\end{lstlisting}
+\begin{lstlisting}[style=svelte,numbers=none]
+<Sterne bind:wert={sterne} />
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \footnotesize
+      \begin{tugitemize}
+        \item[6] \textbf{\code{bind:value}}: Tippen ändert \texttt{text} --
+              und umgekehrt
+        \item[3] \rune{derived}: ein Wert, der sich aus anderen \textbf{ergibt}.
+              Svelte rechnet ihn neu, sobald sich \texttt{text} ändert
+      \end{tugitemize}
+      \begin{block}{Faustregel}
+        \footnotesize Props fließen \textbf{nach unten}. Soll die Komponente etwas
+        \textbf{zurückmelden}: \texttt{bind:}.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Schritt 5 -- Aufgabe: Komponente und Freitext}
+  \footnotesize
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.58\textwidth}
+      \begin{tugenumerate}
+        \item Neue Datei \texttt{src/lib/Sterne.svelte}: Schleife und \code{<style>}
+              aus der Seite hierher \textbf{verschieben}
+        \item Die Variable heißt dort \texttt{wert} und ist ein Prop:
+              \code{\$bindable(0)}
+        \item Knöpfe: \code{type="button"} und \code{aria-label}
+        \item \texttt{+page.svelte}: importieren, \code{<Sterne bind:wert=\{sterne\} />}
+        \item \code{<textarea>} in einem \code{<label>}, gebunden an \texttt{text},
+              höchstens 300 Zeichen
+        \item Darunter \emph{„Noch 280 Zeichen“} mit \rune{derived}
+        \item Sind Sterne gewählt: Zusammenfassung anzeigen
+      \end{tugenumerate}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \textbf{Test}
+      \begin{tugitemize}
+        \item Funktionieren die Sterne wie vorher?
+        \item Zählt der Zähler beim Tippen herunter?
+      \end{tugitemize}
+      \vspace{0.5em}
+      \textbf{CSS} für \code{label} und \code{textarea}:
+      aus \texttt{05-komponente} kopieren.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{loesung}
+\begin{frame}[fragile]{Schritt 5 -- Lösung (1/2): \texttt{src/lib/Sterne.svelte}}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.62\textwidth}
+      \svelterangesm{05-komponente/src/lib/Sterne.svelte}{1}{16}
+    \end{column}
+    \begin{column}{0.34\textwidth}
+      \footnotesize
+      \begin{tugitemize}
+        \item[3] der einzige Eingang
+        \item[9] In einem Formular würde ein normaler Knopf das Formular abschicken
+        \item[11] Ein Screenreader liest so „3 Sterne“ vor
+      \end{tugitemize}
+      \vspace{0.3em}
+      Der \code{<style>}-Block zieht unverändert mit um.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Schritt 5 -- Lösung (2/2): \texttt{src/routes/+page.svelte}}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.4\textwidth}
+      \svelterange{05-komponente/src/routes/+page.svelte}{1}{7}
+    \end{column}
+    \begin{column}{0.58\textwidth}
+      \svelterange{05-komponente/src/routes/+page.svelte}{9}{21}
+    \end{column}
+  \end{columns}
+\end{frame}
+\end{loesung}
+
+\begin{frame}[fragile]{Zusatz: State in einer Klasse}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.5\textwidth}
+      \datei{src/lib/Entwurf.svelte.js}
+      \jsrangesm{zusatz-klasse/src/lib/Entwurf.svelte.js}{2}{15}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \datei{src/routes/+page.svelte}
+\begin{lstlisting}[style=sveltesm,numbers=none]
+<script>
+  import { Entwurf } from '#lib/Entwurf.svelte.js';
+  const entwurf = new Entwurf();
+</script>
+
+<Sterne bind:wert={entwurf.sterne} />
+<p>Noch {entwurf.rest} Zeichen</p>
+<button onclick={() => entwurf.leeren()}>Leeren</button>
+\end{lstlisting}
+      \footnotesize
+      \begin{tugitemize}
+        \item Runes funktionieren als \textbf{Klassenfelder}
+        \item Dateiendung \textbf{\texttt{.svelte.js}}
+        \item Lohnt sich, wenn mehrere Komponenten denselben Zustand brauchen
+      \end{tugitemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Die fünf Runes, die man braucht}
+  \scriptsize
+  \begin{tblr}{colspec={lX[l]l},
+               rowsep=1.5pt,
+               row{odd}={white}, row{even}={lite},
+               row{1}={tug,fg=white}}
+    Rune & Bedeutung & Bei uns \\
+    \rune{state}    & Wert, der sich ändert -- die Seite folgt automatisch   & \texttt{sterne}, \texttt{text} \\
+    \rune{derived}  & Wert, der sich aus anderen ergibt                      & \texttt{rest} \\
+    \rune{props}    & Eingänge einer Komponente (oder Seite)                 & \texttt{wert}, später \texttt{data}, \texttt{form} \\
+    \rune{bindable} & Prop, den die Komponente zurückschreiben darf          & \texttt{wert} in \texttt{Sterne.svelte} \\
+    \rune{effect}   & Code, der \emph{im Browser} läuft, wenn sich State ändert & Schritt 7: Aktualisieren \\
+  \end{tblr}
+  \vspace{0.5em}
+  \begin{block}{Reihenfolge beim Denken}
+    \footnotesize Erst \rune{state}. Lässt sich etwas berechnen: \rune{derived}. \rune{effect} nur,
+    wenn etwas \emph{außerhalb} von Svelte passieren muss (Timer, Netzwerk).
+  \end{block}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sectionheader[Seiten, Server-Code, Formulare]{SvelteKit: vom Browser zum Server}
+
+\begin{frame}{Bisher lebt alles im Browser}
+  \begin{columns}[onlytextwidth,c]
+    \begin{column}{0.46\textwidth}
+      \small
+      \textbf{Probieren Sie es aus}
+      \begin{tugitemize}
+        \item[\itemMinus] Seite neu laden \textarrow{} Sterne weg
+        \item[\itemMinus] zweites Gerät \textarrow{} sieht nichts
+        \item[\itemMinus] nichts wird gespeichert
+      \end{tugitemize}
+      \vspace{0.4em}
+      \textbf{Wir brauchen einen Server}
+      \begin{tugitemize}
+        \item[\itemPlus] ein Ort für \emph{alle} Stimmen
+        \item[\itemPlus] Code, der Dateien schreiben darf
+      \end{tugitemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \node[kasten, minimum width=2.3cm, minimum height=1.1cm] (b1) at (0,1.3)  {\faMobile\ Browser A};
+        \node[kasten, minimum width=2.3cm, minimum height=1.1cm] (b2) at (0,-0.1) {\faMobile\ Browser B};
+        \node[kasten, minimum width=2.4cm] (s)  at (4.3,0.6) {\faServer\\[2pt]\textbf{Server}\\Node.js};
+        \node[datei] (d) at (4.3,-1.0) {stimmen.json};
+        \draw[doppelpfeil] (b1.east) -- (s.west);
+        \draw[doppelpfeil] (b2.east) -- (s.west);
+        \draw[pfeil] (s) -- (d);
+      \end{tikzpicture}
+
+      \vspace{0.4em}
+      {\footnotesize Der Server läuft längst:\\ \texttt{npm run dev} \emph{ist} ein Node.js-Server.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Routing: Ordner und Dateinamen haben Bedeutung}
+  \scriptsize
+  \begin{tblr}{colspec={lX[l]l},
+               rowsep=1.2pt,
+               row{odd}={white}, row{even}={lite},
+               row{1}={tug,fg=white}}
+    Datei in \texttt{src/routes/} & Aufgabe & läuft \\
+    \texttt{+page.svelte}               & die Seite unter \texttt{/}                        & Server \emph{und} Browser \\
+    \texttt{ergebnis/+page.svelte}      & die Seite unter \texttt{/ergebnis}                & Server \emph{und} Browser \\
+    \texttt{+page.server.js}            & Daten laden (\texttt{load}), Formulare annehmen (\texttt{actions}) & \textbf{nur Server} \\
+    \texttt{+layout.svelte}             & Rahmen um alle Seiten im Ordner                   & Server \emph{und} Browser \\
+    \texttt{+server.js}                 & Endpunkt ohne Seite (JSON, Download)              & \textbf{nur Server} \\
+  \end{tblr}
+
+  \vspace{0.4em}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Ordner = Adresse}
+        \footnotesize Neue Seite? Neuer Ordner mit einer \texttt{+page.svelte}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{alertblock}{\texttt{server} im Namen = geschützt}
+        \footnotesize \texttt{+page.server.js} und \texttt{src/lib/server/}
+        erreichen \textbf{nie} den Browser.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Form Actions: Ein Formular spricht mit dem Server}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.44\textwidth}
+      \datei{+page.svelte \textnormal{(Browser)}}
+\begin{lstlisting}[style=svelte]
+<script>
+  let { form } = $props();
+</script>
+
+<form method="POST">
+  <input name="vorname" />
+  <button>Senden</button>
+</form>
+
+{#if form?.gruss}
+  <p>{form.gruss}</p>
+{/if}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.53\textwidth}
+      \datei{+page.server.js \textnormal{(Server)}}
+\begin{lstlisting}[style=js]
+export const actions = {
+  default: async ({ request }) => {
+    const daten = await request.formData();
+    const vorname = daten.get('vorname');
+
+    return { gruss: `Hallo ${vorname}!` };
+  }
+};
+\end{lstlisting}
+      \footnotesize
+      Der Browser schickt die Felder mit \code{name}.
+      Was die Action zurückgibt, kommt als Prop \textbf{\texttt{form}} auf der Seite an.
+      \code{form?.gruss}: „nur wenn \texttt{form} existiert“.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Dem Browser nie vertrauen}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.5\textwidth}
+      \footnotesize
+      Alles im Browser lässt sich umgehen: ein gesperrter Knopf,
+      \code{maxlength}, ein verstecktes Feld.
+
+      \vspace{0.4em}
+      \textbf{Darum prüft der Server noch einmal:}
+\begin{lstlisting}[style=js,numbers=none]
+import { fail } from '@sveltejs/kit';
+
+if (![1, 2, 3, 4, 5].includes(sterne)) {
+  return fail(400, { fehler: 'Bitte 1 bis 5.' });
+}
+\end{lstlisting}
+      \code{fail(400, ...)}: „fehlerhafte Anfrage“. Die Daten landen
+      wie gewohnt in \texttt{form}.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \footnotesize
+      \textbf{Schrittweise verbessern}
+\begin{lstlisting}[style=svelte,numbers=none]
+import { enhance } from '$app/forms';
+
+<form method="POST" use:enhance>
+\end{lstlisting}
+      \begin{tugitemize}
+        \item \textbf{Ohne} \code{use:enhance}: Die Seite lädt nach dem Absenden neu --
+              funktioniert sogar ohne JavaScript
+        \item \textbf{Mit}: Svelte schickt die Daten im Hintergrund,
+              die Seite bleibt stehen
+      \end{tugitemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Schritt 6 -- Aufgabe: Das Formular speichert am Server}
+  \footnotesize
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.6\textwidth}
+      \begin{tugenumerate}
+        \item \textbf{\texttt{src/lib/server/speicher.js}}: Schritt 1 als zwei
+              Funktionen, \code{liesStimmen()} und \code{speichereStimme(stimme)}.
+              Datei: \texttt{data/stimmen.json}
+        \item \textbf{\texttt{src/routes/+page.server.js}}: eine \texttt{default}-Action.
+              \texttt{sterne} und \texttt{text} lesen, Sterne prüfen, speichern,
+              \code{\{ gespeichert: true \}} zurückgeben
+        \item \textbf{\texttt{+page.svelte}}: Sterne, Freitext, Knopf
+              in ein \code{<form method="POST">}
+        \item Freitext: \code{name="text"}. Sterne:
+              \code{<input type="hidden" name="sterne">}
+        \item Nach dem Speichern: \emph{„Danke!“} statt Formular
+      \end{tugenumerate}
+    \end{column}
+    \begin{column}{0.36\textwidth}
+      \textbf{Test}
+      Entsteht \texttt{data/stimmen.json}? Landet die Stimme aus einem
+      zweiten Fenster in derselben Datei?
+
+      \vspace{0.4em}
+      \textbf{Experiment}\\
+      DevTools: das versteckte Feld auf \texttt{99} ändern, abschicken.
+
+      \vspace{0.4em}
+      \textbf{Neu}: \code{mkdirSync(\textquotesingle{}data\textquotesingle{}, ...)} legt den Ordner an.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{lecturer}
+\begin{frame}{\ltitle{Live-Coding Schritt 6 (ca. 20 min)}}
+  \footnotesize
+  \begin{enumerate}
+    \item \texttt{speicher.js}: \texttt{stimmen.js} aus Schritt 1 daneben öffnen, in zwei Funktionen umbauen.
+    \item Action zuerst nur mit \code{console.log(sterne, text)}. \textbf{Wo erscheint die Ausgabe?}
+          Im Terminal, nicht im Browser -- jetzt wird „Server“ greifbar.
+    \item Speichern. \texttt{data/stimmen.json} neben dem Browser offen lassen.
+    \item Erst \emph{ohne} \code{use:enhance}: Seite lädt neu. Dann einbauen: Seite bleibt stehen.
+    \item Experiment mit dem versteckten Feld \textarrow{} Brücke zum Security-Input.
+  \end{enumerate}
+  \textbf{Typische Fehler:} \code{name="..."} vergessen \textarrow{} \code{daten.get} liefert \code{null}.
+  Tippfehler in \texttt{+page.server.js} \textarrow{} Fehler 405.
+  Import ohne Endung \texttt{.js}.
+\end{frame}
+\end{lecturer}
+
+\begin{loesung}
+\begin{frame}[fragile]{Schritt 6 -- Lösung (1/3): \texttt{src/lib/server/speicher.js}}
+  \jsfile{06-formular/src/lib/server/speicher.js}
+\end{frame}
+
+\begin{frame}[fragile]{Schritt 6 -- Lösung (2/3): \texttt{src/routes/+page.server.js}}
+  \jsrangesm{06-formular/src/routes/+page.server.js}{1}{21}
+\end{frame}
+
+\begin{frame}[fragile]{Schritt 6 -- Lösung (3/3): \texttt{src/routes/+page.svelte}}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.45\textwidth}
+      \svelterangesm{06-formular/src/routes/+page.svelte}{1}{16}
+    \end{column}
+    \begin{column}{0.53\textwidth}
+      \svelterangesm{06-formular/src/routes/+page.svelte}{17}{34}
+    \end{column}
+  \end{columns}
+\end{frame}
+\end{loesung}
+
+\begin{frame}[fragile]{load: Daten für eine Seite holen}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.5\textwidth}
+      \datei{ergebnis/+page.server.js \textnormal{(Server)}}
+\begin{lstlisting}[style=js]
+export function load() {
+  const stimmen = liesStimmen();
+
+  return { anzahl: stimmen.length };
+}
+\end{lstlisting}
+      \datei{ergebnis/+page.svelte}
+\begin{lstlisting}[style=svelte]
+<script>
+  let { data } = $props();
+</script>
+
+<p>{data.anzahl} Stimmen</p>
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \footnotesize
+      \begin{tugenumerate}
+        \item Jemand ruft \texttt{/ergebnis} auf
+        \item SvelteKit führt am Server \textbf{\texttt{load}} aus
+        \item Die Rückgabe kommt als Prop \textbf{\texttt{data}} an
+        \item Der Server schickt fertiges HTML
+      \end{tugenumerate}
+      \vspace{0.4em}
+      {\scriptsize
+      \begin{tblr}{colspec={lX[l]l},
+                   rowsep=0.8pt,
+                   row{odd}={white}, row{even}={lite},
+                   row{1}={tug,fg=white}}
+        Am Server & Richtung & Prop \\
+        \texttt{load}    & Server \textarrow{} Seite  & \texttt{data} \\
+        \texttt{actions} & Seite \textarrow{} Server \textarrow{} Seite & \texttt{form} \\
+      \end{tblr}}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Schritt 7 -- Aufgabe: Die Ergebnis-Seite}
+  \footnotesize
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.5\textwidth}
+      Neuer Ordner \texttt{src/routes/ergebnis/}:
+      \begin{tugenumerate}
+        \item \textbf{\texttt{+page.server.js}}: \texttt{load} gibt zurück:
+              \texttt{anzahl}, \texttt{durchschnitt}, \texttt{texte}
+              (nur die nicht leeren)
+        \item \textbf{\texttt{+page.svelte}}: Durchschnitt mit einer
+              Nachkommastelle als \code{<h1>}, Anzahl darunter
+        \item Die Texte als Liste mit \texttt{\{\#each\}}
+        \item \textbf{Zusatz:} alle 2 Sekunden neu laden
+      \end{tugenumerate}
+      \vspace{0.3em}
+      Hilfen: \code{zahl.toFixed(1)}, \code{\textquotesingle{}★\textquotesingle{}.repeat(3)},
+      \code{Math.round(zahl)}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+\begin{lstlisting}[style=sveltesm,numbers=none]
+import { refreshAll } from '$app/navigation';
+
+$effect(() => {
+  const takt = setInterval(refreshAll, 2000);
+  return () => clearInterval(takt);
+});
+\end{lstlisting}
+      \code{refreshAll} führt \texttt{load} neu aus. Die zurückgegebene
+      Funktion stoppt den Timer beim Verlassen der Seite.
+
+      \vspace{0.4em}
+      \textbf{Test}: \texttt{/ergebnis} in einem Fenster, im anderen abstimmen.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{loesung}
+\begin{frame}[fragile]{Schritt 7 -- Lösung (1/2): \texttt{ergebnis/+page.server.js}}
+  \jsrangesm{07-ergebnis/src/routes/ergebnis/+page.server.js}{1}{18}
+\end{frame}
+
+\begin{frame}[fragile]{Schritt 7 -- Lösung (2/2): \texttt{ergebnis/+page.svelte}}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.52\textwidth}
+      \svelterangesm{07-ergebnis/src/routes/ergebnis/+page.svelte}{1}{12}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \svelterangesm{07-ergebnis/src/routes/ergebnis/+page.svelte}{14}{22}
+    \end{column}
+  \end{columns}
+\end{frame}
+\end{loesung}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sectionheader[Server, Browser oder schon beim Bauen?]{Rendering}
+
+\begin{frame}{Wo entsteht das HTML?}
+  \centering
+  \begin{tikzpicture}
+    \node[kasten, minimum width=3.4cm] (s) at (0,0)   {\textbf{1. Server}\\\texttt{load} + Komponente\\\textarrow{} fertiges HTML};
+    \node[kasten, minimum width=3.4cm] (b) at (5.0,0) {\textbf{2. Browser}\\zeigt das HTML\\\emph{sofort} an};
+    \node[kasten, minimum width=3.4cm] (h) at (10.0,0) {\textbf{3. Hydration}\\JavaScript lädt nach,\\Knöpfe werden „lebendig“};
+    \draw[pfeil] (s) -- (b);
+    \draw[pfeil] (b) -- (h);
+  \end{tikzpicture}
+
+  \vspace{0.6em}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.46\textwidth}
+      \raggedright\footnotesize
+      \textbf{Der Standard in SvelteKit}
+      \begin{tugitemize}
+        \item[\itemPlus] Inhalt ist sofort da
+        \item[\itemPlus] Suchmaschinen sehen den Inhalt
+        \item[\itemPlus] danach verhält sich die Seite wie eine App
+      \end{tugitemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \raggedright\footnotesize
+      \textbf{Folge für Ihren Code}
+      \begin{tugitemize}
+        \item Eine \texttt{+page.svelte} läuft \textbf{zweimal}: am Server und im Browser
+        \item \texttt{document} und \texttt{window} gibt es am Server nicht
+              \textarrow{} nur in \rune{effect} verwenden
+      \end{tugitemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Drei Arten, eine Seite auszuliefern}
+  \scriptsize
+  \begin{tblr}{colspec={lX[l]X[l]X[l]},
+               rowsep=1.2pt,
+               row{odd}={white}, row{even}={lite},
+               row{1}={tug,fg=white}}
+    & \textbf{SSR} -- am Server & \textbf{CSR} -- im Browser & \textbf{Prerendering} -- beim Bauen \\
+    HTML entsteht & bei jeder Anfrage & im Browser, per JavaScript & einmal, bei \texttt{npm run build} \\
+    Schalter      & Standard          & \code{export const ssr = false} & \code{export const prerender = true} \\
+    Stärke        & immer aktuelle Daten & Server muss nicht „denken“ & sehr schnell, überall hostbar \\
+    Schwäche      & braucht laufenden Server & erst leer, dann Inhalt & Inhalt für alle gleich \\
+    Passt für     & unsere Ergebnis-Seite & Spiele, Werkzeuge & Schul-Website, Unterlagen \\
+  \end{tblr}
+
+  \vspace{0.5em}
+  \footnotesize
+  Die Schalter stehen in \texttt{+page.server.js} (eine Seite) oder
+  \texttt{+layout.server.js} (alle Seiten). Jede Seite darf anders sein.
+
+  \vspace{0.3em}
+  \itemArrowLine Unsere App braucht einen Server: Sie nimmt Stimmen an und schreibt Dateien.
+\end{frame}
+
+\begin{frame}[fragile]{Experiment: Rendering sichtbar machen}
+  \footnotesize
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.5\textwidth}
+      \texttt{/ergebnis} öffnen, Rechtsklick \textarrow{}
+      \emph{Seitenquelltext anzeigen}: Der Durchschnitt steht \textbf{im HTML}.
+
+      \vspace{0.4em}
+      \textbf{Versuch A} -- in \texttt{ergebnis/+page.server.js}:
+\begin{lstlisting}[style=js,numbers=none]
+export const ssr = false;
+\end{lstlisting}
+      Wo ist der Durchschnitt jetzt?
+
+      \vspace{0.4em}
+      \textbf{Versuch B} -- stattdessen:
+\begin{lstlisting}[style=js,numbers=none]
+export const csr = false;
+\end{lstlisting}
+      Aktualisiert sich die Seite noch? Danach wieder \textbf{löschen}.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Beobachtung A}
+        \footnotesize Der Server schickt nur eine leere Hülle. Der Inhalt entsteht
+        erst im Browser.
+      \end{block}
+      \begin{block}{Beobachtung B}
+        \footnotesize Der Inhalt steht im HTML, aber \rune{effect} läuft nie:
+        kein JavaScript, kein Timer.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sectionheader[Ein npm-Paket im Server-Code]{Excel}
+
+\begin{frame}[fragile]{Schritt 8 -- Aufgabe: Jede Stimme landet in Excel}
+  \footnotesize
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.5\textwidth}
+      \begin{tugenumerate}
+        \item \texttt{npm install exceljs}
+        \item \texttt{speicher.js}: \code{import ExcelJS from \textquotesingle{}exceljs\textquotesingle{}}
+        \item In \code{speichereStimme} nach der JSON-Datei:
+              Arbeitsmappe bauen wie in \textbf{Schritt 2}
+        \item Speichern nach \texttt{data/feedback.xlsx}
+        \item Die Funktion wird \code{async}. In der Action:
+              \code{await speichereStimme(...)}
+      \end{tugenumerate}
+      \textbf{Test}: Abstimmen, \texttt{feedback.xlsx} öffnen.
+    \end{column}
+    \begin{column}{0.47\textwidth}
+\begin{lstlisting}[style=jssm,numbers=none]
+const inhalt = await mappe.xlsx.writeBuffer();
+writeFileSync('data/feedback.xlsx', inhalt);
+\end{lstlisting}
+      Erst im Arbeitsspeicher bauen, dann in einem Zug schreiben.
+      So stören sich zwei gleichzeitige Stimmen nicht.
+      \begin{alertblock}{Stolperstein unter Windows}
+        \footnotesize Ist \texttt{feedback.xlsx} in Excel \textbf{geöffnet},
+        scheitert die nächste Stimme mit \texttt{EBUSY}.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{loesung}
+\begin{frame}[fragile]{Schritt 8 -- Lösung: \texttt{src/lib/server/speicher.js}}
+  \jsrangesm{08-excel/src/lib/server/speicher.js}{10}{12}
+  \jsrangesm{08-excel/src/lib/server/speicher.js}{17}{31}
+  {\scriptsize Zeilen 13--16 wie bisher. In \texttt{+page.server.js}: \code{await speichereStimme(...)}.}
+\end{frame}
+\end{loesung}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sectionheader[Cloudflare Tunnel und QR-Code]{Ab ins Internet}
+
+\begin{frame}{localhost endet an Ihrem Gerät}
+  \centering
+  \begin{tikzpicture}
+    \node[kasten, minimum width=2.2cm] (handy)  at (0,0)    {\faMobile\\[2pt]\textbf{Handy}\\irgendwo};
+    \node[kasten, minimum width=3.6cm] (cf) at (4.0,0)  {\faCloud\\[2pt]\textbf{Cloudflare}\\\texttt{abc.trycloudflare.com}};
+    \node[kasten, minimum width=2.6cm] (cfd)    at (8.4,0)  {\faExchange\\[2pt]\textbf{cloudflared}\\auf Ihrem Laptop};
+    \node[kasten, minimum width=2.6cm] (app)    at (12.0,0) {\faLaptop\\[2pt]\textbf{Ihre App}\\\texttt{localhost:5173}};
+    \draw[pfeil] (handy) -- (cf);
+    \draw[pfeil] (cfd) -- (cf);
+    \draw[pfeil] (cfd) -- (app);
+  \end{tikzpicture}
+
+  \vspace{0.6em}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.48\textwidth}
+      \raggedright\footnotesize
+      \textbf{Das Problem}
+      \begin{tugitemize}
+        \item \texttt{localhost} heißt „dieser Rechner“
+        \item Router und Schulnetz lassen von außen nichts herein
+      \end{tugitemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \raggedright\footnotesize
+      \textbf{Der Trick}
+      \begin{tugitemize}
+        \item Ihr Laptop ruft \emph{hinaus} zu Cloudflare -- das ist erlaubt
+        \item Cloudflare reicht Anfragen durch diese Verbindung \emph{herein}
+      \end{tugitemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Einen Quick Tunnel starten}
+  \footnotesize
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.53\textwidth}
+      \textbf{Einmal installieren} (Windows / macOS)
+\begin{lstlisting}[style=term]
+winget install --id Cloudflare.cloudflared
+brew install cloudflared
+\end{lstlisting}
+      \textbf{Starten} -- in einem \emph{zweiten} Terminal,
+      während \texttt{npm run dev} läuft:
+\begin{lstlisting}[style=term]
+cloudflared tunnel --url http://localhost:5173
+\end{lstlisting}
+      In der Ausgabe steht die Adresse:
+\begin{lstlisting}[style=term]
+https://abc-def-ghi.trycloudflare.com
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \textbf{Quick Tunnel heißt}
+      \begin{tugitemize}
+        \item[\itemPlus] kein Konto, keine Kosten, HTTPS
+        \item[\itemMinus] bei jedem Start eine \textbf{neue} Adresse
+        \item[\itemMinus] nur zum Testen und Vorführen
+      \end{tugitemize}
+      \begin{alertblock}{Ihr Laptop ist jetzt im Internet}
+        \footnotesize Wer die Adresse kennt, erreicht \emph{alle} Seiten Ihrer App.
+        Tunnel mit \texttt{Strg+C} beenden, sobald Sie fertig sind.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Schritt 9 -- Aufgabe: Tunnel und QR-Code}
+  \footnotesize
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.54\textwidth}
+      \begin{tugenumerate}
+        \item Tunnel starten, Adresse am Handy öffnen \textarrow{} \emph{Blocked request}
+        \item \textbf{\texttt{vite.config.js}}: Tunnel-Namen erlauben
+        \item \texttt{npm install qrcode}
+        \item \textbf{\texttt{ergebnis/+page.server.js}}: \texttt{load} wird \code{async}
+              und bekommt \code{\{ url \}}. Adresse und QR-Code zurückgeben
+        \item \textbf{\texttt{ergebnis/+page.svelte}}:
+              \code{<img src=\{data.qr\} alt="...">}, Adresse darunter
+        \item \texttt{/ergebnis} \textbf{über die Tunnel-Adresse} öffnen,
+              Sitznachbar*innen abstimmen lassen
+      \end{tugenumerate}
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \datei{vite.config.js}
+\begin{lstlisting}[style=jssm,numbers=none]
+export default defineConfig({
+  plugins: [ ... ],
+  server: {
+    allowedHosts: ['.trycloudflare.com']
+  }
+});
+\end{lstlisting}
+      \datei{ergebnis/+page.server.js}
+\begin{lstlisting}[style=jssm,numbers=none]
+import QRCode from 'qrcode';
+
+const adresse = `https://${url.host}`;
+const qr = await QRCode.toDataURL(adresse);
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{lecturer}
+\begin{frame}{\ltitle{Live-Coding Schritt 9 (ca. 15 min)}}
+  \footnotesize
+  \begin{enumerate}
+    \item Tunnel starten, am Handy öffnen: \emph{Blocked request}. Die Fehlermeldung nennt die Lösung.
+    \item Nach der Änderung in \texttt{vite.config.js} startet der Dev-Server von selbst neu.
+    \item \code{url.host}: der Name, unter dem die Seite \emph{gerade} aufgerufen wurde.
+          Lokal geöffnet zeigt der QR-Code daher auf \texttt{localhost}.
+    \item Alle öffnen ihre Ergebnis-Seite über den Tunnel, Nachbar*innen scannen.
+    \item Excel-Datei öffnen. Der Kreis zu Schritt 0 schließt sich.
+  \end{enumerate}
+  \textbf{Tunnel geht nicht auf?} Netz blockiert ausgehend Port 7844 \textarrow{} Handy-Hotspot,
+  oder \texttt{-{}-protocol http2} probieren. Notfalls im selben WLAN:
+  \texttt{npm run dev -{}- -{}-host} und die IP-Adresse verwenden.
+\end{frame}
+\end{lecturer}
+
+\begin{loesung}
+\begin{frame}[fragile]{Schritt 9 -- Lösung}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.5\textwidth}
+      \datei{ergebnis/+page.server.js}
+      \jsrangesm{09-tunnel/src/routes/ergebnis/+page.server.js}{1}{1}
+      \jsrangesm{09-tunnel/src/routes/ergebnis/+page.server.js}{5}{5}
+      \jsrangesm{09-tunnel/src/routes/ergebnis/+page.server.js}{13}{14}
+      \jsrangesm{09-tunnel/src/routes/ergebnis/+page.server.js}{20}{21}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \datei{vite.config.js}
+      \jsrangesm{09-tunnel/vite.config.js}{23}{25}
+      \vspace{0.3em}
+      \datei{ergebnis/+page.svelte}
+      \svelterangesm{09-tunnel/src/routes/ergebnis/+page.svelte}{14}{15}
+      \vspace{0.3em}
+      {\footnotesize Der Punkt vor \texttt{.trycloudflare.com}: alle Namen, die so enden.}
+    \end{column}
+  \end{columns}
+\end{frame}
+\end{loesung}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\sectionheader[Rückblick, Stolpersteine, Ausblick]{Geschafft}
+
+\begin{frame}{Die ganze App auf einer Folie}
+  \scriptsize
+  \begin{tblr}{colspec={lX[l]l},
+               rowsep=1.2pt,
+               row{odd}={white}, row{even}={lite},
+               row{1}={tug,fg=white}}
+    Datei & Aufgabe & läuft \\
+    \texttt{src/lib/Sterne.svelte}               & fünf Sterne zum Anklicken               & Browser \\
+    \texttt{src/routes/+page.svelte}             & das Formular                            & Server + Browser \\
+    \texttt{src/routes/+page.server.js}          & Stimme prüfen und speichern lassen      & Server \\
+    \texttt{src/lib/server/speicher.js}          & JSON lesen/schreiben, Excel erzeugen    & Server \\
+    \texttt{src/routes/ergebnis/+page.server.js} & Durchschnitt und QR-Code berechnen      & Server \\
+    \texttt{src/routes/ergebnis/+page.svelte}    & Ergebnis anzeigen und auffrischen       & Server + Browser \\
+    \texttt{vite.config.js}                      & eine Einstellung für den Tunnel         & -- \\
+  \end{tblr}
+
+  \vspace{0.6em}
+  \footnotesize
+  \itemArrowLine \textbf{Rund 150 Zeilen eigener Code} (ohne CSS), zwei npm-Pakete (\texttt{exceljs}, \texttt{qrcode}), ein Tunnel.
+
+  \vspace{0.3em}
+  Die fertige App liegt in \texttt{code/feedback-app}: \texttt{npm install}, dann \texttt{npm run dev}.
+\end{frame}
+
+\begin{frame}{Stolperstein: veraltete Anleitungen}
+  \footnotesize
+  Svelte 5 und SvelteKit 3 haben einiges umbenannt. Videos, Blogs und
+  \textbf{KI-Assistenten} zeigen oft die alte Schreibweise.
+
+  \vspace{0.3em}
+  {\scriptsize
+  \begin{tblr}{colspec={X[l]X[l]l},
+               rowsep=0.6pt,
+               row{odd}={white}, row{even}={lite},
+               row{1}={tug,fg=white}}
+    Alt -- so steht es oft im Netz & Aktuell -- so machen wir es & seit \\
+    \code{let zahl = 0;} (automatisch reaktiv)      & \code{let zahl = \$state(0);}         & Svelte 5 \\
+    \code{\$: doppelt = zahl * 2;}                  & \code{let doppelt = \$derived(zahl * 2);} & Svelte 5 \\
+    \code{export let wert;}                         & \code{let \{ wert \} = \$props();}    & Svelte 5 \\
+    \code{on:click=\{...\}}                         & \code{onclick=\{...\}}                & Svelte 5 \\
+    \code{from \textquotesingle{}\$lib/Sterne.svelte\textquotesingle{}}               & \code{from \textquotesingle{}\#lib/Sterne.svelte\textquotesingle{}}     & SvelteKit 3 \\
+    Einstellungen in \texttt{svelte.config.js}      & Einstellungen in \texttt{vite.config.js} & SvelteKit 3 \\
+    \code{invalidateAll()}                          & \code{refreshAll()}                   & SvelteKit 3 \\
+    \code{\$app/stores}, \code{\$app/environment}   & \code{\$app/state}, \code{\$app/env}  & SvelteKit 3 \\
+  \end{tblr}}
+
+  \vspace{0.3em}
+  \itemArrowLine Im Zweifel gilt die Dokumentation: \url{https://svelte.dev/docs}
+\end{frame}
+
+\begin{frame}{Häufige Fehler}
+  \scriptsize
+  \begin{tblr}{colspec={X[l]X[l]},
+               rowsep=0.8pt,
+               row{odd}={white}, row{even}={lite},
+               row{1}={tug,fg=white}}
+    Was Sie sehen & Woran es meist liegt \\
+    \texttt{Cannot use import statement outside a module} & \code{"type": "module"} fehlt in \texttt{package.json} \\
+    \texttt{Cannot find package \textquotesingle{}exceljs\textquotesingle{}}                & \texttt{npm install} vergessen oder im falschen Ordner \\
+    Klick ändert nichts auf der Seite                     & \rune{state} vergessen \\
+    Funktion läuft sofort statt beim Klick                & \code{onclick=\{tuWas()\}} statt \code{onclick=\{tuWas\}} \\
+    \code{daten.get(\textquotesingle{}text\textquotesingle{})} liefert \code{null}          & \code{name="text"} fehlt am Formularfeld \\
+    Fehler 405 beim Absenden                              & keine \texttt{actions} in \texttt{+page.server.js} \\
+    \texttt{Blocked request. This host is not allowed}    & \texttt{allowedHosts} in \texttt{vite.config.js} fehlt \\
+    \texttt{EBUSY} beim Speichern                         & \texttt{feedback.xlsx} ist in Excel geöffnet \\
+    QR-Code führt zu \texttt{localhost}                   & Ergebnis-Seite nicht über die Tunnel-Adresse geöffnet \\
+  \end{tblr}
+\end{frame}
+
+\begin{frame}[fragile]{Cheatsheet}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.48\textwidth}
+\begin{lstlisting}[style=sveltesm,numbers=none]
+let zahl = $state(0);
+let doppelt = $derived(zahl * 2);
+let { wert = $bindable(0) } = $props();
+$effect(() => { ...; return () => { ... }; });
+
+{#each liste as element} ... {/each}
+{#if bedingung} ... {:else} ... {/if}
+<button onclick={() => (zahl += 1)}>
+<input bind:value={text} />
+<Sterne bind:wert={sterne} />
+\end{lstlisting}
+\begin{lstlisting}[style=term,basicstyle=\ttfamily\fontsize{7}{8.2}\selectfont]
+npx sv create mein-projekt
+npm install     npm install paket     npm run dev
+cloudflared tunnel --url http://localhost:5173
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+\begin{lstlisting}[style=jssm,numbers=none]
+// src/routes/ergebnis/+page.server.js  ->  /ergebnis
+export function load() {
+  return { anzahl: 3 };            // -> data
+}
+
+export const actions = {
+  default: async ({ request }) => {
+    const daten = await request.formData();
+    return { gespeichert: true };  // -> form
+  }
+};
+\end{lstlisting}
+\begin{lstlisting}[style=term,basicstyle=\ttfamily\fontsize{7}{8.2}\selectfont]
+src/lib/Sterne.svelte   ->  '#lib/Sterne.svelte'
+src/lib/server/...      ->  nur am Server
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Bis zum Online-Termin}
+  \small
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.5\textwidth}
+      \textbf{Zum Aufwärmen} -- an der Feedback-App
+      \begin{tugitemize}
+        \item Frage und Freitext-Frage ändern
+        \item eine zweite Sterne-Frage ergänzen
+        \item zeigen, wie oft jede Sternzahl vergeben wurde
+      \end{tugitemize}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{Ihr eigenes kleines Projekt}
+      \begin{tugitemize}
+        \item[\itemArrow] Quiz mit Auswertung
+        \item[\itemArrow] Anmeldeliste für den Sprechtag
+        \item[\itemArrow] Vokabeltrainer
+      \end{tugitemize}
+    \end{column}
+  \end{columns}
+  \vspace{0.4em}
+  \begin{block}{Bringen Sie mit}
+    \small Ihren Stand -- auch wenn er nicht läuft -- und \textbf{eine Stelle, an der Sie hängen geblieben sind}.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Ausblick: die beiden Online-Termine}
+  \begin{columns}[onlytextwidth,t]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Kurzinput Security}
+        \footnotesize
+        \begin{tugitemize}
+          \item Das Experiment mit dem versteckten Feld -- systematisch
+          \item Was passiert mit Text, den Fremde eingeben?
+          \item Unsere Ergebnis-Seite ist öffentlich. Ist das in Ordnung?
+          \item Daten von Schüler*innen: Was darf wohin?
+        \end{tugitemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Kurzinput KI beim Entwickeln}
+        \footnotesize
+        \begin{tugitemize}
+          \item Heute haben Sie jede Zeile selbst geschrieben -- \textbf{darum} können Sie KI-Code beurteilen
+          \item Wo Assistenten helfen, wo sie veraltet sind
+          \item Was heißt das für den Unterricht?
+        \end{tugitemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Weiterlernen}
+  \footnotesize
+  \begin{tugitemize}
+    \item \textbf{Interaktives Tutorial} -- im Browser, ohne Installation:
+          \url{https://svelte.dev/tutorial}
+    \item \textbf{Playground} -- Komponenten ausprobieren und per Link teilen:
+          \url{https://svelte.dev/playground}
+    \item \textbf{Dokumentation} -- Svelte und SvelteKit:
+          \url{https://svelte.dev/docs}
+    \item \textbf{Alle Beispiele} im Ordner \texttt{code/}:
+          \texttt{schritte/01-node} \dots{} \texttt{09-tunnel} (Stand nach jedem Schritt),
+          \texttt{feedback-app} (fertig)
+  \end{tugitemize}
+  \begin{block}{Der wichtigste Tipp}
+    Kleine Schritte: eine Zeile ändern, speichern, anschauen.
+    Dann wissen Sie immer, welche Zeile den Fehler hat.
+  \end{block}
+\end{frame}
+
+\begin{lecturer}
+\begin{frame}{\ltitle{Moderation zum Abschluss}}
+  \scriptsize
+  \begin{tugitemize}
+    \item In \texttt{+page.svelte} live die Frage ändern auf \emph{„Wie war der Vormittag?“},
+          \texttt{data/} löschen, noch einmal abstimmen lassen.
+    \item Excel-Datei öffnen und stehen lassen.
+    \item Erwartete Fragen:
+      \begin{tugitemize}
+        \item \emph{Dauerhaft online stellen?} -- Ja, aber nicht mit Quick Tunnel und Dev-Server:
+              \texttt{npm run build} + Hosting. Thema für online.
+        \item \emph{Warum JSON und keine Datenbank?} -- Für 30 Stimmen reicht eine Datei. SQLite wäre der nächste Schritt.
+        \item \emph{Kann jemand mehrfach abstimmen?} -- Ja. Gute Aufgabe fürs eigene Projekt (Cookie), Thema im Security-Input.
+        \item \emph{Geht das mit TypeScript?} -- Ja, \texttt{sv create} bietet es an. Heute bewusst weggelassen.
+      \end{tugitemize}
+    \item Tunnel beenden -- und \textbf{sagen}, dass man ihn beendet.
+  \end{tugitemize}
+\end{frame}
+\end{lecturer}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\switchtostandard
+\begin{frame}[plain]
+  \maketitle
+\end{frame}
+
+\slidesAndLicense[LaTeX Umsetzung unterstützt durch Claude]
+
+\end{document}

@@ -1,0 +1,12 @@
+.DS_Store
+node_modules/
+.svelte-kit/
+build/
+data/
+.claude/
+
+# LaTeX: nur die drei fertigen PDFs behalten
+PDF/*
+!PDF/sveltekit-tutorium-student.pdf
+!PDF/sveltekit-tutorium-student-solution.pdf
+!PDF/sveltekit-tutorium-lecturer.pdf

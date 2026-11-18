@@ -1,0 +1,11 @@
+{
+	"name": "node-test",
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"excel": "node excel.js"
+	},
+	"dependencies": {
+		"exceljs": "^4.4.0"
+	}
+}
